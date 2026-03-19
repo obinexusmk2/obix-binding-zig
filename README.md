@@ -1,0 +1,137 @@
+# @obinexusltd/obix-binding-zig
+
+TypeScript bindings for OBIX Zig runtime integration through the libpolycall ABI bridge.
+
+## Overview
+
+`@obinexusltd/obix-binding-zig` provides a modular bridge API for:
+
+- Creating and initializing a Zig binding configuration
+- Invoking ABI-backed polyglot functions with structured envelopes
+- Returning consistent typed invocation errors
+- Tracking arena allocator state across the binding lifecycle
+- Caching compile-time (`comptime`) evaluation results via an LRU cache
+- Resolving schema capabilities per `SchemaMode` (WASM, `@cImport`, comptime)
+
+## Installation
+
+```bash
+npm install @obinexusltd/obix-binding-zig
+```
+
+## Usage
+
+```ts
+import { createZigBinding } from '@obinexusltd/obix-binding-zig';
+
+const binding = createZigBinding({
+  ffiPath: '/path/to/libpolycall.so',
+  zigVersion: '0.13',
+  schemaMode: 'hybrid',
+  memoryModel: 'manual',
+  buildMode: 'ReleaseFast',
+  compileTarget: 'native',
+  comptimeCacheSize: 128,
+});
+
+await binding.initialize();
+
+const result = await binding.invoke('exampleFunction', ['arg1', 42]);
+console.log(result);
+
+// Cache a comptime evaluation result
+const cached = await binding.submitComptimeEval('myConstant', 'computeConstant', []);
+
+// Inspect arena usage
+const stats = binding.getArenaStats();
+console.log(stats.arenaBytes, stats.peakArenaBytes);
+
+// Reset the arena (e.g. end of request scope)
+binding.resetArena();
+
+await binding.destroy();
+```
+
+## API
+
+### `createZigBinding(config: ZigBindingConfig): ZigBindingBridge`
+
+Creates a binding bridge with lifecycle and invocation methods.
+
+#### Lifecycle
+
+| Method | Description |
+|--------|-------------|
+| `initialize()` | Validates `ffiPath` and `schemaMode`, marks binding ready |
+| `invoke(fn, args)` | Invokes a polyglot function through the libpolycall ABI |
+| `destroy()` | Tears down all sub-modules and marks binding uninitialized |
+| `isInitialized()` | Returns whether the binding is ready |
+
+#### Memory
+
+| Method | Description |
+|--------|-------------|
+| `getMemoryUsage()` | Returns `ZigArenaStats` snapshot |
+| `getArenaStats()` | Alias for `getMemoryUsage()` |
+| `resetArena()` | Resets arena byte count (preserves peak) |
+
+#### Comptime
+
+| Method | Description |
+|--------|-------------|
+| `submitComptimeEval(key, fn, args)` | Invokes `fn` and caches result under `key`; returns cached value on subsequent calls |
+
+#### Sub-module accessors
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `ffiTransport` | `FFITransportAPI` | Raw envelope builder and dispatcher |
+| `arenaAllocator` | `ArenaAllocatorAPI` | Arena allocation tracker |
+| `comptimeCache` | `ComptimeCacheAPI` | LRU comptime result cache |
+| `schemaResolver` | `ZigSchemaResolverAPI` | Schema mode resolver and validator |
+
+### `ZigBindingConfig`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `ffiPath` | `string` | required | Path to the libpolycall shared library |
+| `schemaMode` | `'monoglot' \| 'polyglot' \| 'hybrid'` | required | Polyglot interop mode |
+| `memoryModel` | `'gc' \| 'manual' \| 'hybrid'` | required | Memory management strategy |
+| `zigVersion` | `ZigVersion` | `undefined` | Zig toolchain version (`'0.11'`–`'nightly'`) |
+| `buildMode` | `ZigBuildMode` | `undefined` | `Debug`, `ReleaseSafe`, `ReleaseFast`, or `ReleaseSmall` |
+| `compileTarget` | `ZigCompileTarget` | `undefined` | Target triple (e.g. `'native'`, `'wasm32-wasi'`) |
+| `comptimeCacheSize` | `number` | `256` | Maximum LRU entries in the comptime cache |
+| `allocator` | `string` | `undefined` | Preferred allocator hint (`'arena'`, `'stack'`, etc.) |
+| `llvmOptLevel` | `string` | `undefined` | LLVM optimization level (`'0'`–`'3'`, `'s'`, `'z'`) |
+
+## Error model
+
+Invocation errors are returned as typed objects (never thrown):
+
+| Code | Meaning |
+|------|---------|
+| `NOT_INITIALIZED` | `invoke` or `submitComptimeEval` called before `initialize()` |
+| `MISSING_SYMBOL` | No `__obixAbiInvoker` registered, or function identifier missing |
+| `INVOCATION_FAILED` | The ABI invoker threw during dispatch |
+
+Each error includes the full `InvocationEnvelope` for debugging at ABI boundaries.
+
+## Schema capabilities by mode
+
+| Capability | `monoglot` | `hybrid` | `polyglot` |
+|-----------|-----------|---------|-----------|
+| `wasmEnabled` | No | Yes | Yes |
+| `cImportEnabled` | No | Yes | Yes |
+| `comptimeEvalEnabled` | Yes | Yes | Yes |
+| `supportsMultiLanguage` | No | Yes | Yes |
+
+## Development
+
+```bash
+npm run build
+npm test
+```
+
+## License
+
+MIT
