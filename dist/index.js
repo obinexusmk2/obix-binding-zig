@@ -1,9 +1,3 @@
-/**
- * OBIX Zig Binding
- * Systems programming, compile-time optimization
- * Connects libpolycall FFI/polyglot bridge to Zig runtime
- */
-// ── Sub-module factory re-exports ─────────────────────────────────────────────
 export { createFFITransport, normalizeFunctionIdentifier } from './ffi-transport.js';
 export { createArenaAllocator } from './arena-allocator.js';
 export { createComptimeCache } from './comptime-cache.js';
@@ -12,12 +6,6 @@ import { createFFITransport, normalizeFunctionIdentifier } from './ffi-transport
 import { createArenaAllocator } from './arena-allocator.js';
 import { createComptimeCache } from './comptime-cache.js';
 import { createSchemaResolver } from './schema-resolver.js';
-// ── Main factory ──────────────────────────────────────────────────────────────
-/**
- * Create a Zig binding to libpolycall
- * @param config Configuration for the binding
- * @returns Bridge for invoking polyglot functions and managing Zig runtime state
- */
 export function createZigBinding(config) {
     let initialized = false;
     const ABI_BINDING_NAME = 'zig';

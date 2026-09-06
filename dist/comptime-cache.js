@@ -1,6 +1,5 @@
 const DEFAULT_MAX_SIZE = 256;
 export function createComptimeCache(maxSize = DEFAULT_MAX_SIZE) {
-    // Insertion-ordered map — keys at the front are oldest (LRU eviction target)
     const entries = new Map();
     let hitCount = 0;
     let missCount = 0;
@@ -15,7 +14,6 @@ export function createComptimeCache(maxSize = DEFAULT_MAX_SIZE) {
     const api = {
         set(key, value) {
             if (entries.has(key)) {
-                // Refresh: remove then re-insert to move to end (most-recently-used)
                 entries.delete(key);
             }
             else if (entries.size >= maxSize) {
@@ -30,7 +28,6 @@ export function createComptimeCache(maxSize = DEFAULT_MAX_SIZE) {
                 return undefined;
             }
             hitCount++;
-            // Move to end (most-recently-used)
             entries.delete(key);
             entries.set(key, entry);
             return entry.value;

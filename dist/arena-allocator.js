@@ -19,7 +19,6 @@ export function createArenaAllocator() {
         reset() {
             arenaBytes = 0;
             resetCount++;
-            // peakArenaBytes is preserved across resets — it tracks the lifetime peak
         },
         snapshot() {
             return {
